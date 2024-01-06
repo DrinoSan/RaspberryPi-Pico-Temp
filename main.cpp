@@ -1,5 +1,6 @@
 #include <cstdint>
 #include <stdio.h>
+#include "pico/platform.h"
 #include "pico/stdlib.h"
 #include <string>
 
@@ -25,12 +26,25 @@ int main() {
 
     printf("Hello, BMP280! Reading temperaure and pressure values from sensor...\n");
 
-    // I2C is "open drain", pull ups to keep signal high when no data is being sent
+   // Initialize I2C for BMP280
     i2c_init(i2c_default, 100 * 1000);
     gpio_set_function(PICO_DEFAULT_I2C_SDA_PIN, GPIO_FUNC_I2C);
     gpio_set_function(PICO_DEFAULT_I2C_SCL_PIN, GPIO_FUNC_I2C);
     gpio_pull_up(PICO_DEFAULT_I2C_SDA_PIN);
     gpio_pull_up(PICO_DEFAULT_I2C_SCL_PIN);
+
+    // Initialize BMP280
+    bmp280_init();
+
+    // Initialize I2C for SSD1306
+    i2c_init(i2c_default, SSD1306_I2C_CLK * 1000);
+    gpio_set_function(PICO_DEFAULT_I2C_SDA_PIN, GPIO_FUNC_I2C);
+    gpio_set_function(PICO_DEFAULT_I2C_SCL_PIN, GPIO_FUNC_I2C);
+    gpio_pull_up(PICO_DEFAULT_I2C_SDA_PIN);
+    gpio_pull_up(PICO_DEFAULT_I2C_SCL_PIN);
+
+    // Initialize SSD1306
+    SSD1306_init();
 
     sleep_ms(1000);
     for (int addr = 0x08; addr <= 0x77; addr++) {
@@ -44,9 +58,6 @@ int main() {
             printf("11 DID not found device at address0x%02X\n", addr);
         }
     }
-
-    // configure BMP280
-    bmp280_init();
 
     // retrieve fixed compensation params
     struct bmp280_calib_param params;
@@ -85,15 +96,9 @@ int main() {
     /////////////////////////////////////////////////////////////////////////////////////////
     /////////////////////////////////////////////////////////////////////////////////////////
     /////////////////////////////////////////////////////////////////////////////////////////
-    /////////////////////////////////////////////////////////////////////////////////////////
-    
-    gpio_set_function(I2C1_SDA_PIN, GPIO_FUNC_I2C);
-    gpio_set_function(I2C1_SCL_PIN, GPIO_FUNC_I2C);
-    gpio_pull_up(I2C1_SDA_PIN);
-    gpio_pull_up(I2C1_SCL_PIN);
+    /////////////////////////////////////////////////////////////////////////////////////////‚
 
-    // run through the complete initialization process
-    SSD1306_init();
+
 
     // Initialize render area for entire frame (SSD1306_WIDTH pixels by SSD1306_NUM_PAGES pages)
     struct render_area frame_area = {
@@ -134,52 +139,38 @@ restart:
     uint8_t offset = 5 + IMG_WIDTH; // 5px padding
 
     for (int i = 0; i < 3; i++) {
-        render(raspberry26x32, &area);
+        // render(raspberry26x32, &area);
         area.start_col += offset;
         area.end_col += offset;
     }
-
-    SSD1306_scroll(true);
-    sleep_ms(5000);
-    SSD1306_scroll(false);
 
     bmp280_read_raw(&raw_temperature, &raw_pressure, &raw_humidity);
     temperature = bmp280_convert_temp(raw_temperature, &params);
     pressure = bmp280_convert_pressure(raw_pressure, raw_temperature, &params);
 
-    // char *text[] = {
-    //     "Temperature: ",
-    //     "Preassure:   ",
-    // };
+    // I guess this is stupid
+    float pres = pressure / 1000.f;
+    float temp = temperature / 100.f;
+    const char *text[] = {
+        ("Temperature: " + std::to_string(temp)).c_str(),
+        ("Pressure:    " + std::to_string(pres)).c_str()
+    };
 
-    std::string text = "Temperatur: " + std::to_string(static_cast<int32_t>(temperature)) + "\nPreassure: " + std::to_string(static_cast<int32_t>(pressure)) + "\n";
+    printf("DEBUG Temperature: %.2f\n", temp);
+    printf("DEBUG Pressure:    %.2f\n", pres);
 
     int y = 0;
-    for (int i = 0 ;i < count_of(text.c_str()); i++) {
+    for (int i = 0 ;i < count_of(text); i++) {
         WriteString(buf, 5, y, text[i]);
         y+=8;
     }
     render(buf, &frame_area);
 
-    // Test the display invert function
+    // // Test the display invert function
     sleep_ms(3000);
     SSD1306_send_cmd(SSD1306_SET_INV_DISP);
     sleep_ms(3000);
     SSD1306_send_cmd(SSD1306_SET_NORM_DISP);
-
-    bool pix = true;
-    for (int i = 0; i < 2;i++) {
-        for (int x = 0;x < SSD1306_WIDTH;x++) {
-            DrawLine(buf, x, 0,  SSD1306_WIDTH - 1 - x, SSD1306_HEIGHT - 1, pix);
-            render(buf, &frame_area);
-        }
-
-        for (int y = SSD1306_HEIGHT-1; y >= 0 ;y--) {
-            DrawLine(buf, 0, y, SSD1306_WIDTH - 1, SSD1306_HEIGHT - 1 - y, pix);
-            render(buf, &frame_area);
-        }
-        pix = false;
-    }
 
     goto restart;
 

@@ -24,3 +24,6 @@ pico_enable_stdio_uart(tmp 0)
 
 # create map/bin/hex/uf2 file in addition to ELF.
 pico_add_extra_outputs(tmp)
+
+set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
+
