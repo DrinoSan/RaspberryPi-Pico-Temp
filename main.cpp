@@ -83,15 +83,14 @@ int main() {
             printf("22 DID not found device at address0x%02X\n", addr);
         }
     }
-    // while (1) {
-        bmp280_read_raw(&raw_temperature, &raw_pressure, &raw_humidity);
-        int32_t temperature = bmp280_convert_temp(raw_temperature, &params);
-        int32_t pressure = bmp280_convert_pressure(raw_pressure, raw_temperature, &params);
-        printf("Preassure = %.3f kPa\n", pressure / 1000.f);
-        printf("Temp. = %.2f C\n", temperature / 100.f);
-        // poll every 500ms
-        sleep_ms(500);
-    // }
+
+    bmp280_read_raw(&raw_temperature, &raw_pressure, &raw_humidity);
+    int32_t temperature = bmp280_convert_temp(raw_temperature, &params);
+    int32_t pressure = bmp280_convert_pressure(raw_pressure, raw_temperature, &params);
+    printf("Preassure = %.3f kPa\n", pressure / 1000.f);
+    printf("Temp. = %.2f C\n", temperature / 100.f);
+    // poll every 500ms
+    sleep_ms(500);
 
     /////////////////////////////////////////////////////////////////////////////////////////
     /////////////////////////////////////////////////////////////////////////////////////////
