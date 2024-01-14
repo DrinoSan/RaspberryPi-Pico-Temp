@@ -3,49 +3,30 @@
 #include "pico/platform.h"
 #include "pico/stdlib.h"
 #include <string>
+#include "hardware/gpio.h"
 
 #include "bmp280.h"
 #include "oled.h"
 
+#define MOTION_SENSOR_PIN 0
 
-// int main() {
-//     stdio_init_all();
-//     std::string x = "Sandrino";
-//     while (true) {
-//         printf("Hello, world! %s\n", x.c_str());
-//         sleep_ms(1000);
-//     }
-// }
 
-int main() {
-    stdio_init_all();
+struct render_area setupFrameArea()
+{
+    // Initialize render area for entire frame (SSD1306_WIDTH pixels by SSD1306_NUM_PAGES pages)
+    struct render_area frame_area = {
+        start_col: 0,
+        end_col : SSD1306_WIDTH - 1,
+        start_page : 0,
+        end_page : SSD1306_NUM_PAGES - 1
+        };
 
-    // useful information for picotool
-    bi_decl(bi_2pins_with_func(PICO_DEFAULT_I2C_SDA_PIN, PICO_DEFAULT_I2C_SCL_PIN, GPIO_FUNC_I2C));
-    bi_decl(bi_program_description("BMP280 I2C example for the Raspberry Pi Pico"));
+    calc_render_area_buflen(&frame_area);
+    return frame_area;
+}
 
-    printf("Hello, BMP280! Reading temperaure and pressure values from sensor...\n");
-
-   // Initialize I2C for BMP280
-    i2c_init(i2c_default, 100 * 1000);
-    gpio_set_function(PICO_DEFAULT_I2C_SDA_PIN, GPIO_FUNC_I2C);
-    gpio_set_function(PICO_DEFAULT_I2C_SCL_PIN, GPIO_FUNC_I2C);
-    gpio_pull_up(PICO_DEFAULT_I2C_SDA_PIN);
-    gpio_pull_up(PICO_DEFAULT_I2C_SCL_PIN);
-
-    // Initialize BMP280
-    bmp280_init();
-
-    // Initialize I2C for SSD1306
-    i2c_init(i2c_default, SSD1306_I2C_CLK * 1000);
-    gpio_set_function(PICO_DEFAULT_I2C_SDA_PIN, GPIO_FUNC_I2C);
-    gpio_set_function(PICO_DEFAULT_I2C_SCL_PIN, GPIO_FUNC_I2C);
-    gpio_pull_up(PICO_DEFAULT_I2C_SDA_PIN);
-    gpio_pull_up(PICO_DEFAULT_I2C_SCL_PIN);
-
-    // Initialize SSD1306
-    SSD1306_init();
-
+void readTemperaturePreassureAndDisplay()
+{
     sleep_ms(1000);
     // retrieve fixed compensation params
     struct bmp280_calib_param params;
@@ -63,23 +44,9 @@ int main() {
     int32_t pressure = bmp280_convert_pressure(raw_pressure, raw_temperature, &params);
     printf("Preassure = %.3f kPa\n", pressure / 1000.f);
     printf("Temp. = %.2f C\n", temperature / 100.f);
-    // poll every 500ms
     sleep_ms(500);
 
-    /////////////////////////////////////////////////////////////////////////////////////////
-    /////////////////////////////////////////////////////////////////////////////////////////
-    /////////////////////////////////////////////////////////////////////////////////////////
-    /////////////////////////////////////////////////////////////////////////////////////////‚
-
-
-
-    // Initialize render area for entire frame (SSD1306_WIDTH pixels by SSD1306_NUM_PAGES pages)
-    struct render_area frame_area = {
-        start_col: 0,
-        end_col : SSD1306_WIDTH - 1,
-        start_page : 0,
-        end_page : SSD1306_NUM_PAGES - 1
-        };
+    auto frame_area = setupFrameArea();
 
     calc_render_area_buflen(&frame_area);
 
@@ -94,27 +61,6 @@ int main() {
         sleep_ms(500);
         SSD1306_send_cmd(SSD1306_SET_ENTIRE_ON); // go back to following RAM for pixel state
         sleep_ms(500);
-    }
-
-    // render 3 cute little raspberries
-    struct render_area area = {
-        start_page : 0,
-        end_page : (IMG_HEIGHT / SSD1306_PAGE_HEIGHT)  - 1
-    };
-
-restart:
-
-    area.start_col = 0;
-    area.end_col = IMG_WIDTH - 1;
-
-    calc_render_area_buflen(&area);
-    
-    uint8_t offset = 5 + IMG_WIDTH; // 5px padding
-
-    for (int i = 0; i < 3; i++) {
-        // render(raspberry26x32, &area);
-        area.start_col += offset;
-        area.end_col += offset;
     }
 
     bmp280_read_raw(&raw_temperature, &raw_pressure, &raw_humidity);
@@ -144,12 +90,77 @@ restart:
     SSD1306_send_cmd(SSD1306_SET_INV_DISP);
     sleep_ms(3000);
     SSD1306_send_cmd(SSD1306_SET_NORM_DISP);
+}
 
-    goto restart;
+void displaySleeping() {
+    struct render_area frame_area = setupFrameArea();
+    calc_render_area_buflen(&frame_area);
 
-    /////////////////////////////////////////////////////////////////////////////////////////
-    /////////////////////////////////////////////////////////////////////////////////////////
-    /////////////////////////////////////////////////////////////////////////////////////////
-    /////////////////////////////////////////////////////////////////////////////////////////
+    uint8_t buf[SSD1306_BUF_LEN];
+    memset(buf, 0, SSD1306_BUF_LEN);
+    render(buf, &frame_area);
 
+    // Display "Sleeping..." message
+    memset(buf, 0, SSD1306_BUF_LEN);
+    const char *sleepingMessage = "Sleeping...";
+    WriteString(buf, 5, 0, sleepingMessage);
+    render(buf, &frame_area);
+}
+
+
+int main() {
+    stdio_init_all();
+
+    // useful information for picotool
+    bi_decl(bi_2pins_with_func(PICO_DEFAULT_I2C_SDA_PIN, PICO_DEFAULT_I2C_SCL_PIN, GPIO_FUNC_I2C));
+    bi_decl(bi_program_description("BMP280 I2C example for the Raspberry Pi Pico"));
+
+    printf("Hello, BMP280! Reading temperaure and pressure values from sensor...\n");
+
+    // Initialize I2C for BMP280
+    i2c_init(i2c_default, 100 * 1000);
+    gpio_set_function(PICO_DEFAULT_I2C_SDA_PIN, GPIO_FUNC_I2C);
+    gpio_set_function(PICO_DEFAULT_I2C_SCL_PIN, GPIO_FUNC_I2C);
+    gpio_pull_up(PICO_DEFAULT_I2C_SDA_PIN);
+    gpio_pull_up(PICO_DEFAULT_I2C_SCL_PIN);
+
+    // Initialize BMP280
+    bmp280_init();
+
+    // Initialize I2C for SSD1306
+    i2c_init(i2c_default, SSD1306_I2C_CLK * 1000);
+    gpio_set_function(PICO_DEFAULT_I2C_SDA_PIN, GPIO_FUNC_I2C);
+    gpio_set_function(PICO_DEFAULT_I2C_SCL_PIN, GPIO_FUNC_I2C);
+    gpio_pull_up(PICO_DEFAULT_I2C_SDA_PIN);
+    gpio_pull_up(PICO_DEFAULT_I2C_SCL_PIN);
+
+    // Initialize SSD1306
+    SSD1306_init();
+
+
+    // Motion sensor begin
+    gpio_init(MOTION_SENSOR_PIN);
+    gpio_set_dir(MOTION_SENSOR_PIN, GPIO_IN);
+
+    while(true)
+    {
+        if(gpio_get(MOTION_SENSOR_PIN))
+        {
+            printf("MOTION DETECTED\n");
+
+            readTemperaturePreassureAndDisplay();
+            printf("GOING TO PAUSE 5 seconds\n");
+            while (gpio_get(MOTION_SENSOR_PIN)) {
+                sleep_ms(5000);  // Adjust the delay as needed
+            }
+            printf("Woke up from 5 second sleep\n");
+
+        }
+        else {
+            printf("NOOO motion detected\n");
+            displaySleeping();
+        }
+
+        sleep_ms(500);
+    }
 }
