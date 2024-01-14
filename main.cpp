@@ -47,18 +47,6 @@ int main() {
     SSD1306_init();
 
     sleep_ms(1000);
-    for (int addr = 0x08; addr <= 0x77; addr++) {
-        uint8_t data = 0;  // You can change this to any data
-        int result = i2c_write_blocking(i2c_default, addr, &data, 1, true);
-        if (result >= 0) {
-            printf("Found device at address 0x%02X\n", addr);
-        }
-        else
-        {
-            printf("11 DID not found device at address0x%02X\n", addr);
-        }
-    }
-
     // retrieve fixed compensation params
     struct bmp280_calib_param params;
     bmp280_get_calib_params(&params);
@@ -69,20 +57,6 @@ int main() {
 
     sleep_ms(250); // sleep so that data polling and register update don't collide
 
-    // I2C scanner loop (outside the main while loop)
-    printf("Scanning I2C bus...\n");
-
-    for (int addr = 0x08; addr <= 0x77; addr++) {
-        uint8_t data = 0;  // You can change this to any data
-        int result = i2c_write_blocking(i2c_default, addr, &data, 1, true);
-        if (result >= 0) {
-            printf("Found device at address 0x%02X\n", addr);
-        }
-        else
-        {
-            printf("22 DID not found device at address0x%02X\n", addr);
-        }
-    }
 
     bmp280_read_raw(&raw_temperature, &raw_pressure, &raw_humidity);
     int32_t temperature = bmp280_convert_temp(raw_temperature, &params);
