@@ -13,3 +13,13 @@ A simple program to measure temperature/humidity/pressure.
 
 ## Wiring 
 The wiring is in series with the devices. Thanks to the I2C protocol, communication works as long as the I2C addresses of the devices do not collide.
+
+
+## Reading logs
+```
+minicom -b 115200 -o -D /dev/tty.usbmodem11301
+```
+
+To move uf2 file to pico
+cd /Volumes/RPI-RP2
+cp u2f file
